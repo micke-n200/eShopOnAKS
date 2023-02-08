@@ -2,6 +2,10 @@ name: eShopOnWeb Build and Test
 
 on: [push, pull_request, workflow_dispatch]
 
+permissions:
+  id-token: write
+  contents: read
+
 jobs:
   build:
 
@@ -20,3 +24,27 @@ jobs:
     
     - name: Test with dotnet
       run: dotnet test ./eShopOnWeb.sln --configuration Release
+
+  deploy_aks:
+    needs: [build]
+    uses: ./.github/workflows/deploy_aks.yml
+    with:
+      resourceGroupName: 'cnny-week3'
+    secrets:
+      AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+      AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+      AZURE_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+  publish_container_image:
+    needs: [deploy_aks]
+    uses: ./.github/workflows/publish_container_image.yml
+    with:
+      containerRegistryName: ${{ needs.deploy_aks.outputs.containerRegistryName }}
+      containerRegistryUrl: ${{ needs.deploy_aks.outputs.containerRegistryUrl }}
+      githubSha: ${{ github.sha }}
+    secrets:
+      AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+      AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+      AZURE_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+  
